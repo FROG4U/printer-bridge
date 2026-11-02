@@ -1,0 +1,54 @@
+name: Build APK
+
+# Builds a debug APK in the cloud on every push (and on demand), then publishes
+# it as the "latest" Release so it has a stable download URL:
+#   https://github.com/FROG4U/printer-bridge/releases/latest/download/printer-bridge.apk
+# It's also attached to each run under Actions → Artifacts → app-debug.apk.
+# No Android tools needed on your machine.
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to publish the APK as a Release asset
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Name the APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk printer-bridge.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug.apk
+          path: printer-bridge.apk
+          if-no-files-found: error
+
+      - name: Publish to the "latest" release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest Printer Bridge APK
+          files: printer-bridge.apk
