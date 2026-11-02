@@ -26,6 +26,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: ''   # don't install the obsolete 'tools' package (removed by Google); runner already has the SDK
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
