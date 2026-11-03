@@ -80,7 +80,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun ensurePermissions() {
         val perms = mutableListOf<String>()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) perms.add(Manifest.permission.BLUETOOTH_CONNECT)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            perms.add(Manifest.permission.BLUETOOTH_CONNECT)
+            // Needed so the service's cancelDiscovery() is allowed; without it the
+            // connect loop throws before it can reach the printer.
+            perms.add(Manifest.permission.BLUETOOTH_SCAN)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) perms.add(Manifest.permission.POST_NOTIFICATIONS)
         val missing = perms.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isNotEmpty()) permLauncher.launch(missing.toTypedArray()) else loadPairedDevices()

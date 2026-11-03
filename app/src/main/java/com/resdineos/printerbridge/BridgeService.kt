@@ -94,7 +94,11 @@ class BridgeService : Service() {
             if (!connected) {
                 try {
                     val dev = adapter.getRemoteDevice(mac)
-                    adapter.cancelDiscovery()
+                    // Optional: free the radio before connecting. Needs BLUETOOTH_SCAN
+                    // on Android 12+; if that permission is missing it throws a
+                    // SecurityException — swallow it so it never blocks the connect
+                    // below (the actual RFCOMM connect only needs BLUETOOTH_CONNECT).
+                    try { adapter.cancelDiscovery() } catch (_: Exception) {}
                     val s = dev.createRfcommSocketToServiceRecord(SPP_UUID)
                     s.connect()
                     socket = s
