@@ -5,6 +5,8 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -16,6 +18,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -119,15 +122,33 @@ class MainActivity : AppCompatActivity() {
                 val conn = URL("http://127.0.0.1:${BridgeService.PORT}/print").openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.doOutput = true
+                conn.connectTimeout = 3000
+                conn.readTimeout = 8000
                 conn.setRequestProperty("Content-Type", "application/octet-stream")
+                // Pin the body length so HttpURLConnection never falls back to
+                // chunked encoding — the bridge reads Content-Length bytes exactly,
+                // and a missing length would make it print nothing.
+                conn.setFixedLengthStreamingMode(esc.size)
                 conn.outputStream.use { (it as OutputStream).write(esc) }
                 val code = conn.responseCode
-                ui.post { status.text = if (code == 200) "Test slip sent ✓" else "Test failed (HTTP $code). Is the bridge started and the printer on?" }
+                val body = try {
+                    (if (code in 200..299) conn.inputStream else conn.errorStream)
+                        ?.bufferedReader()?.readText() ?: ""
+                } catch (_: Exception) { "" }
+                ui.post {
+                    if (code == 200 && !body.contains("\"ok\":false")) {
+                        toast("Test slip sent ✔  Check the printer.")
+                    } else {
+                        toast("Test failed (HTTP $code). Is the printer on and connected? $body")
+                    }
+                }
             } catch (e: Exception) {
-                ui.post { status.text = "Test failed: ${e.message}. Start the bridge first." }
+                ui.post { toast("Test failed: ${e.message}. Start the bridge first.") }
             }
         }
     }
+
+    private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
     private fun buildTestSlip(): ByteArray {
         val out = ArrayList<Byte>()
@@ -148,10 +169,17 @@ class MainActivity : AppCompatActivity() {
         ui.postDelayed(object : Runnable {
             override fun run() {
                 if (BridgeService.running) {
-                    status.text = if (BridgeService.connected)
-                        "● Connected to ${BridgeService.printerName} · serving http://127.0.0.1:${BridgeService.PORT}"
-                    else
-                        "○ Bridge running — connecting to ${BridgeService.printerName}…" + (BridgeService.lastError?.let { "\n($it)" } ?: "")
+                    if (BridgeService.connected) {
+                        status.setTextColor(Color.parseColor("#158A3A"))  // green
+                        status.setTypeface(null, Typeface.BOLD)
+                        status.textSize = 17f
+                        status.text = "✔ Connected to ${BridgeService.printerName}\nReady to print · serving 127.0.0.1:${BridgeService.PORT}"
+                    } else {
+                        status.setTextColor(Color.parseColor("#B26A00"))  // amber
+                        status.setTypeface(null, Typeface.NORMAL)
+                        status.textSize = 15f
+                        status.text = "○ Connecting to ${BridgeService.printerName}…" + (BridgeService.lastError?.let { "\n($it)" } ?: "")
+                    }
                 }
                 ui.postDelayed(this, 1500)
             }
