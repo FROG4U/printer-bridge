@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The app only ever talks to its own bridge server on the loopback address
+  (http://127.0.0.1:9100). Android blocks cleartext HTTP by default, which stops
+  that internal call ("Cleartext HTTP traffic to 127.0.0.1 not permitted"). Allow
+  cleartext for loopback ONLY — no other host is permitted cleartext.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>
